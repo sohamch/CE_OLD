@@ -15,6 +15,7 @@ MonteCarloSamplerSpec = [
     ("TSInteractSpecs", int64[:, :]),
     ("SpecOnInteractSites", int64[:, :]),
     ("Interaction2En", float64[:]),
+    ("InteractToRepClus", int64[:]),
     ("numVecsInteracts", int64[:]),
     ("VecsInteracts", float64[:, :, :]),
     ("jumpFinSites", int64[:]),
@@ -38,15 +39,16 @@ MonteCarloSamplerSpec = [
 @jitclass(MonteCarloSamplerSpec)
 class MCSamplerClass(object):
 
-    def __init__(self, numSitesInteracts, SupSitesInteracts, SpecOnInteractSites, Interaction2En, numVecsInteracts,
+    def __init__(self, numSitesInteracts, SupSitesInteracts, SpecOnInteractSites, Interaction2En, InteractToRepClus, numVecsInteracts,
                  VecsInteracts, VecGroupInteracts, numInteractsSiteSpec, SiteSpecInterArray,
                  numSitesTSInteracts, TSInteractSites, TSInteractSpecs, jumpFinSites, jumpFinSpec,
                  FinSiteFinSpecJumpInd, numJumpPointGroups, numTSInteractsInPtGroups, JumpInteracts, Jump2KRAEng,
                  vacSiteInd, mobOcc, OffSiteCount):
 
-        self.numSitesInteracts, self.SupSitesInteracts, self.SpecOnInteractSites, self.Interaction2En, self.numVecsInteracts, \
-        self.VecsInteracts, self.VecGroupInteracts, self.numInteractsSiteSpec, self.SiteSpecInterArray, self.vacSiteInd = \
-            numSitesInteracts, SupSitesInteracts, SpecOnInteractSites, Interaction2En, numVecsInteracts, \
+        self.numSitesInteracts, self.SupSitesInteracts, self.SpecOnInteractSites, self.Interaction2En, self.InteractToRepClus,\
+        self.numVecsInteracts, self.VecsInteracts, self.VecGroupInteracts, self.numInteractsSiteSpec, self.SiteSpecInterArray,\
+        self.vacSiteInd = \
+            numSitesInteracts, SupSitesInteracts, SpecOnInteractSites, Interaction2En, InteractToRepClus, numVecsInteracts, \
             VecsInteracts, VecGroupInteracts, numInteractsSiteSpec, SiteSpecInterArray, vacSiteInd
 
         self.numSitesTSInteracts, self.TSInteractSites, self.TSInteractSpecs = \
@@ -69,11 +71,35 @@ class MCSamplerClass(object):
                 if mobOcc[interSite] != interSpec:
                     self.OffSiteCount[interactIdx] += 1
 
-        # Reformat the array so that the swaps are always between atoms of different species
+    def makeRepClusOnCounter(self, offsc):
+        totRepClus = np.max(self.InteractToRepClus) + 1
+        repclusOncounter = np.zeros(totRepClus, dtype=int64)
+        for interactInd in range(offsc.shape[0]):
+            repClusInd = self.InteractToRepClus[interactInd]
+            if offsc[interactInd] == 0:
+                repclusOncounter[repClusInd] += 1
+        return repclusOncounter
+
+    def makeOffSiteCount(self, state):
+        OffSiteCount = np.zeros(self.numSitesInteracts.shape[0], dtype=int64)
+        for interactIdx in range(self.numSitesInteracts.shape[0]):
+            for intSiteind in range(self.numSitesInteracts[interactIdx]):
+                if state[self.SupSitesInteracts[interactIdx, intSiteind]] != self.SpecOnInteractSites[interactIdx, intSiteind]:
+                    OffSiteCount[interactIdx] += 1
+        return OffSiteCount
+
+    def GetTSOffSite(self, state):
+        TransOffSiteCount = np.zeros(self.numSitesTSInteracts.shape[0], dtype=int64)
+        for TsInteractIdx in range(self.numSitesTSInteracts.shape[0]):
+            for Siteind in range(self.numSitesTSInteracts[TsInteractIdx]):
+                if state[self.TSInteractSites[TsInteractIdx, Siteind]] != self.TSInteractSpecs[TsInteractIdx, Siteind]:
+                    TransOffSiteCount[TsInteractIdx] += 1
+        return TransOffSiteCount
 
     def makeMCsweep(self, mobOcc, OffSiteCount, TransOffSiteCount,
                     SwapTrials, beta, randarr, Nswaptrials, vacSiteInd=0):
 
+        # modifying to make representative cluster counts.
         acceptCount = 0
         acceptInd = np.zeros(Nswaptrials, dtype=int64)
         badTrials = 0
