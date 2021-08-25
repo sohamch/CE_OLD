@@ -326,8 +326,10 @@ class VectorClusterExpansion(object):
                 for site, spec in cl.SiteSpecs:
                     if site.ci == ci:
                         Rtrans = R - site.R
-                        interactSupInd = tuple(sorted([(self.sup.index(site.R+Rtrans, site.ci)[0], spec)
-                                                       for site, spec in cl.SiteSpecs], key=lambda x: x[0]))
+                        # we need the interactions to have sites in some order
+                        # because we want to make them hashable keys later on.
+                        interactSupInd = set([(self.sup.index(site.R+Rtrans, site.ci)[0], spec)
+                                                       for site, spec in cl.SiteSpecs])
                         SiteSpecinteractList[(siteInd, spec)].append([interactSupInd, cl, Rtrans])
 
         maxinteractions = max([len(lst) for key, lst in SiteSpecinteractList.items()])
@@ -376,7 +378,7 @@ class VectorClusterExpansion(object):
             keySpec = key[1]
             numInteractsSiteSpec[keySite, keySpec] = len(interactInfoList)
             for interactInd, interactInfo in enumerate(interactInfoList):
-                interaction = interactInfo[0]
+                interaction = tuple(sorted(list(interactInfo[0]), key=lambda x: x[0]))
                 if interaction in InteractionIndexDict:
                     #siteSpecInteractIndexDict[(keySite, keySpec)].append(InteractionIndexDict[interaction])
                     SiteSpecInterArray[keySite, keySpec, interactInd] = InteractionIndexDict[interaction]

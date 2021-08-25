@@ -374,7 +374,7 @@ class test_Vector_Cluster_Expansion(unittest.TestCase):
             sp = key[1]
             # print(infoList[0][0])
             for interactionData in infoList:
-                interaction = interactionData[0]
+                interaction = tuple(sorted(list(interactionData[0]), key=lambda x: x[0]))
                 interactCounter[interaction] += 1
                 RepClust = interactionData[1]
 
