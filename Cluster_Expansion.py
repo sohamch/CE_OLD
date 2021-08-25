@@ -4,6 +4,7 @@ import collections
 import itertools
 import Transitions
 import time
+from tqdm import tqdm
 
 
 class ClusterSpecies():
@@ -114,30 +115,28 @@ class VectorClusterExpansion(object):
         self.zeroClusts = zeroClusts
         self.OrigVac = OrigVac
 
-        start = time.time()
         if OrigVac:
             self.SpecClusters, self.SiteSpecInteractions, self.maxInteractCount = self.InteractsOrigVac()
         else:
             self.SpecClusters = self.recalcClusters()
+            print("No. of site, species clusters: {}".format(sum([len(clList) for clList in self.SpecClusters])))
             self.SiteSpecInteractions, self.maxInteractCount = self.generateSiteSpecInteracts()
             # add a small check here - maybe we'll remove this later
 
-        print("Built Species Clusters : {:.4f} seconds".format(time.time() - start))
-
-        start = time.time()
-        self.vecClus, self.vecVec, self.clus2LenVecClus = self.genVecClustBasis(self.SpecClusters)
-        print("Built vector bases for clusters : {:.4f}".format(time.time() - start))
-
-        start = time.time()
-        self.KRAexpander = Transitions.KRAExpand(sup, self.chem, jumpnetwork, maxorderTrans, Tclusexp, NSpec, self.Nvac, vacSite)
-        print("Built KRA expander : {:.4f}".format(time.time() - start))
-
-        start = time.time()
-        self.IndexClusters()  #  assign integer identifiers to each cluster
-        self.indexVclus2Clus()  # Index vector cluster list to cluster symmetry groups
-        self.indexClustertoVecClus()  # Index where in the vector cluster list a cluster is present
-        self.indexClustertoSpecClus()  # Index clusters to symmetry groups
-        print("Built Indexing : {:.4f}".format(time.time() - start))
+        # start = time.time()
+        # self.vecClus, self.vecVec, self.clus2LenVecClus = self.genVecClustBasis(self.SpecClusters)
+        # print("Built vector bases for clusters : {:.4f}".format(time.time() - start))
+        #
+        # start = time.time()
+        # self.KRAexpander = Transitions.KRAExpand(sup, self.chem, jumpnetwork, maxorderTrans, Tclusexp, NSpec, self.Nvac, vacSite)
+        # print("Built KRA expander : {:.4f}".format(time.time() - start))
+        #
+        # start = time.time()
+        # self.IndexClusters()  #  assign integer identifiers to each cluster
+        # self.indexVclus2Clus()  # Index vector cluster list to cluster symmetry groups
+        # self.indexClustertoVecClus()  # Index where in the vector cluster list a cluster is present
+        # self.indexClustertoSpecClus()  # Index clusters to symmetry groups
+        # print("Built Indexing : {:.4f}".format(time.time() - start))
 
     def recalcClusters(self):
         """
@@ -181,7 +180,8 @@ class VectorClusterExpansion(object):
         vecClustList = []
         vecVecList = []
         clus2LenVecClus = np.zeros(len(specClusters), dtype=int)
-        for clListInd, clList in enumerate(specClusters):
+        for clListInd in tqdm(range(len(specClusters)), position=0, leave=True):
+            clList = specClusters[clListInd]
             cl0 = clList[0]
             glist0 = []
             if not self.OrigVac:
@@ -316,7 +316,8 @@ class VectorClusterExpansion(object):
         InteractSymListNoTrans = []
         InteractSet = set()
         Interact2RepClustDict = collections.defaultdict(set)
-        for siteInd in range(self.Nsites):
+        print("Building Interactions (Translated clusters):", flush=True)
+        for siteInd in tqdm(range(self.Nsites), position=0, leave=True):
             # get the cluster site
             ci, R = self.sup.ciR(siteInd)
             clSite = cluster.ClusterSite(ci=ci, R=R)
@@ -389,7 +390,6 @@ class VectorClusterExpansion(object):
         # first, we assign unique integers to interactions
         start = time.time()
         InteractionIndexDict = {}
-        siteSortedInteractionIndexDict = {}
         InteractionRepClusDict = {}
         Index2InteractionDict = {}
         repClustCounter = collections.defaultdict(int)
