@@ -119,11 +119,7 @@ class VectorClusterExpansion(object):
             self.SpecClusters, self.SiteSpecInteractions, self.maxInteractCount = self.InteractsOrigVac()
         else:
             self.SpecClusters = self.recalcClusters()
-            end1 = time.time()
-            print("\t built {} clusters:{:.4f} seconds".format(len([cl for clist in self.SpecClusters for cl in clist])
-                                                               , end1 - start))
             self.SiteSpecInteractions, self.maxInteractCount = self.generateSiteSpecInteracts()
-            print("\t built interactions:{:.4f} seconds".format(time.time() - end1))
             # add a small check here - maybe we'll remove this later
 
         print("Built Species Clusters : {:.4f} seconds".format(time.time() - start))
@@ -312,45 +308,62 @@ class VectorClusterExpansion(object):
 
         return symClusterList, SiteSpecinteractList, maxinteractions
 
-    def generateSiteSpecInteracts(self):#, NoTrans=False):
+    def generateSiteSpecInteracts(self, NoTrans=False):
         """
         generate interactions for every site - for MC moves
         """
         SiteSpecinteractList = collections.defaultdict(list)
         InteractSymListNoTrans = []
+        InteractSet = set()
         Interact2RepClustDict = collections.defaultdict(set)
+        for siteInd in range(self.Nsites):
+            # get the cluster site
+            ci, R = self.sup.ciR(siteInd)
+            clSite = cluster.ClusterSite(ci=ci, R=R)
+            # Now, go through all the clusters
+            for cl in [cl for clist in self.SpecClusters for cl in clist]:
+                for site, spec in cl.SiteSpecs:
+                    if site.ci == ci:
+                        Rtrans = R - site.R
+                        interact = tuple([(cluster.ClusterSite(R=site.R+Rtrans, ci=site.ci), spec)
+                                          for site, spec in cl.SiteSpecs])
+                        interactSupInd = tuple(sorted([(self.sup.index(site.R+Rtrans, site.ci)[0], spec)
+                                                       for site, spec in cl.SiteSpecs], key=lambda x: x[0]))
+                        SiteSpecinteractList[(clSite, spec)].append([interactSupInd, cl, Rtrans])
 
-        allSiteTuples = [self.sup.ciR(siteInd) for siteInd in range(self.Nsites)]
-        allSites = [cluster.ClusterSite(ci=ci, R=R) for (ci, R) in allSiteTuples]
+                        if NoTrans:
+                            # See if this has already been considered
+                            if interactSupInd in InteractSet:
+                                continue
+                            else:
+                                orbit = set()
+                                # Apply group operations
+                                for gop in self.crys.G:
+                                    # Get the rotated interaction
+                                    interactRot = tuple([(site.g(self.crys, gop), spec) for site, spec in interact])
+                                    # Get the representative cluster for this rotated rotated interaction
+                                    clRot = cl.g(self.crys, gop)
 
-        allClusters = [cl for clist in self.SpecClusters for cl in clist]
+                                    # Bring the rotated sites back into the supercell
+                                    interactRotSupInd = tuple(sorted([(self.sup.index(site.R, site.ci)[0], spec)
+                                                                      for site, spec in interactRot], key=lambda x: x[0]))
+                                    Interact2RepClustDict[interactRotSupInd].add(clRot)
+                                    orbit.add(interactRotSupInd)
 
-        # Now, go through all the clusters
-        for cl in allClusters:
-
-            # Go through all the lattice translations
-            for clSite in allSites:
-                # get the cluster site
-                R = clSite.R
-                # translate all sites with this translation
-                interactSupInd = tuple([(self.sup.index(st.R + R, st.ci)[0], spec)
-                                                                               for st, spec in cl.SiteSpecs])
-
-                # for every new site, store the interaction they are a part of
-                for stInd, spec in interactSupInd:
-                    SiteSpecinteractList[(stInd, spec)].append([interactSupInd, cl, R])
+                                InteractSet.update(orbit)
+                                InteractSymListNoTrans.append(list(orbit))
 
         maxinteractions = max([len(lst) for key, lst in SiteSpecinteractList.items()])
 
         SiteSpecinteractList.default_factory = None
         Interact2RepClustDict.default_factory = None
 
-        # if NoTrans:
-        #     InteractSymListNoTrans.sort(key=lambda x: len(x))
-        #     return SiteSpecinteractList, maxinteractions, InteractSymListNoTrans, Interact2RepClustDict
-        #
-        # else:
-        return SiteSpecinteractList, maxinteractions
+        if NoTrans:
+            InteractSymListNoTrans.sort(key=lambda x: len(x))
+            return SiteSpecinteractList, maxinteractions, InteractSymListNoTrans, Interact2RepClustDict
+
+        else:
+            return SiteSpecinteractList, maxinteractions
 
     def IndexClusters(self):
         """
