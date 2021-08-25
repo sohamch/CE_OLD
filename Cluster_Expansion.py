@@ -123,20 +123,20 @@ class VectorClusterExpansion(object):
             self.SiteSpecInteractions, self.maxInteractCount = self.generateSiteSpecInteracts()
             # add a small check here - maybe we'll remove this later
 
-        # start = time.time()
-        # self.vecClus, self.vecVec, self.clus2LenVecClus = self.genVecClustBasis(self.SpecClusters)
-        # print("Built vector bases for clusters : {:.4f}".format(time.time() - start))
-        #
-        # start = time.time()
-        # self.KRAexpander = Transitions.KRAExpand(sup, self.chem, jumpnetwork, maxorderTrans, Tclusexp, NSpec, self.Nvac, vacSite)
-        # print("Built KRA expander : {:.4f}".format(time.time() - start))
-        #
-        # start = time.time()
-        # self.IndexClusters()  #  assign integer identifiers to each cluster
-        # self.indexVclus2Clus()  # Index vector cluster list to cluster symmetry groups
-        # self.indexClustertoVecClus()  # Index where in the vector cluster list a cluster is present
-        # self.indexClustertoSpecClus()  # Index clusters to symmetry groups
-        # print("Built Indexing : {:.4f}".format(time.time() - start))
+        start = time.time()
+        self.vecClus, self.vecVec, self.clus2LenVecClus = self.genVecClustBasis(self.SpecClusters)
+        print("Built vector bases for clusters : {:.4f}".format(time.time() - start))
+
+        start = time.time()
+        self.KRAexpander = Transitions.KRAExpand(sup, self.chem, jumpnetwork, maxorderTrans, Tclusexp, NSpec, self.Nvac, vacSite)
+        print("Built KRA expander : {:.4f}".format(time.time() - start))
+
+        start = time.time()
+        self.IndexClusters()  #  assign integer identifiers to each cluster
+        self.indexVclus2Clus()  # Index vector cluster list to cluster symmetry groups
+        self.indexClustertoVecClus()  # Index where in the vector cluster list a cluster is present
+        self.indexClustertoSpecClus()  # Index clusters to symmetry groups
+        print("Built Indexing : {:.4f}".format(time.time() - start))
 
     def recalcClusters(self):
         """
@@ -316,24 +316,24 @@ class VectorClusterExpansion(object):
         InteractSymListNoTrans = []
         InteractSet = set()
         Interact2RepClustDict = collections.defaultdict(set)
+        allClList = [cl for clist in self.SpecClusters for cl in clist]
         print("Building Interactions (Translated clusters):", flush=True)
         for siteInd in tqdm(range(self.Nsites), position=0, leave=True):
             # get the cluster site
             ci, R = self.sup.ciR(siteInd)
-            clSite = cluster.ClusterSite(ci=ci, R=R)
             # Now, go through all the clusters
-            for cl in [cl for clist in self.SpecClusters for cl in clist]:
+            for cl in allClList:
                 for site, spec in cl.SiteSpecs:
                     if site.ci == ci:
                         Rtrans = R - site.R
-                        interact = tuple([(cluster.ClusterSite(R=site.R+Rtrans, ci=site.ci), spec)
-                                          for site, spec in cl.SiteSpecs])
                         interactSupInd = tuple(sorted([(self.sup.index(site.R+Rtrans, site.ci)[0], spec)
                                                        for site, spec in cl.SiteSpecs], key=lambda x: x[0]))
-                        SiteSpecinteractList[(clSite, spec)].append([interactSupInd, cl, Rtrans])
+                        SiteSpecinteractList[(siteInd, spec)].append([interactSupInd, cl, Rtrans])
 
                         if NoTrans:
                             # See if this has already been considered
+                            interact = tuple([(cluster.ClusterSite(R=site.R + Rtrans, ci=site.ci), spec)
+                                              for site, spec in cl.SiteSpecs])
                             if interactSupInd in InteractSet:
                                 continue
                             else:
@@ -401,7 +401,7 @@ class VectorClusterExpansion(object):
 
         count = 0  # to keep a steady count of interactions.
         for key, interactInfoList in self.SiteSpecInteractions.items():
-            keySite = self.sup.index(key[0].R, key[0].ci)[0]  # the "index" function applies PBC to sites outside sup.
+            keySite = key[0]  # the "index" function applies PBC to sites outside sup.
             keySpec = key[1]
             numInteractsSiteSpec[keySite, keySpec] = len(interactInfoList)
             for interactInd, interactInfo in enumerate(interactInfoList):

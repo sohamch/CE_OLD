@@ -385,7 +385,7 @@ class test_Vector_Cluster_Expansion(unittest.TestCase):
                 clust2Interact[RepClust].append(interaction)
                 count = 0
                 for (site, spec) in interaction:
-                    if site == self.VclusExp.sup.index(clSite.R, clSite.ci)[0] and sp == spec:
+                    if site == clSite and sp == spec:
                         count += 1
                 self.assertEqual(count, 1)
 
@@ -413,13 +413,13 @@ class test_Vector_Cluster_Expansion(unittest.TestCase):
         # test that all translations of all representative clusters are considered
         allSpCl = [SpCl for SpClList in self.VclusExp.SpecClusters for SpCl in SpClList]
         for (key, infoList) in self.VclusExp.SiteSpecInteractions.items():
-            clSite = key[0]
+            ci, _ = self.VclusExp.sup.ciR(key[0])
             sp = key[1]
             count = 0
             # For each assigned species, check that all translations of a cluster are considered.
             for SpecClus in allSpCl:
                 for (site, spec) in SpecClus.SiteSpecs:
-                    if spec == sp and site.ci == clSite.ci:
+                    if spec == sp and site.ci == ci:
                         count += 1  # a translation of this cluster should exist
 
             self.assertEqual(count, len(infoList), msg="count {}, stored {}\n{}".format(count, len(infoList), key))
