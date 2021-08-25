@@ -308,7 +308,7 @@ class VectorClusterExpansion(object):
 
         return symClusterList, SiteSpecinteractList, maxinteractions
 
-    def generateSiteSpecInteracts(self, NoTrans=False):
+    def generateSiteSpecInteracts(self):  #, NoTrans=False
         """
         generate interactions for every site - for MC moves
         """
@@ -330,41 +330,41 @@ class VectorClusterExpansion(object):
                                                        for site, spec in cl.SiteSpecs], key=lambda x: x[0]))
                         SiteSpecinteractList[(siteInd, spec)].append([interactSupInd, cl, Rtrans])
 
-                        if NoTrans:
-                            # See if this has already been considered
-                            interact = tuple([(cluster.ClusterSite(R=site.R + Rtrans, ci=site.ci), spec)
-                                              for site, spec in cl.SiteSpecs])
-                            if interactSupInd in InteractSet:
-                                continue
-                            else:
-                                orbit = set()
-                                # Apply group operations
-                                for gop in self.crys.G:
-                                    # Get the rotated interaction
-                                    interactRot = tuple([(site.g(self.crys, gop), spec) for site, spec in interact])
-                                    # Get the representative cluster for this rotated rotated interaction
-                                    clRot = cl.g(self.crys, gop)
-
-                                    # Bring the rotated sites back into the supercell
-                                    interactRotSupInd = tuple(sorted([(self.sup.index(site.R, site.ci)[0], spec)
-                                                                      for site, spec in interactRot], key=lambda x: x[0]))
-                                    Interact2RepClustDict[interactRotSupInd].add(clRot)
-                                    orbit.add(interactRotSupInd)
-
-                                InteractSet.update(orbit)
-                                InteractSymListNoTrans.append(list(orbit))
+                        # if NoTrans:
+                        #     # See if this has already been considered
+                        #     interact = tuple([(cluster.ClusterSite(R=site.R + Rtrans, ci=site.ci), spec)
+                        #                       for site, spec in cl.SiteSpecs])
+                        #     if interactSupInd in InteractSet:
+                        #         continue
+                        #     else:
+                        #         orbit = set()
+                        #         # Apply group operations
+                        #         for gop in self.crys.G:
+                        #             # Get the rotated interaction
+                        #             interactRot = tuple([(site.g(self.crys, gop), spec) for site, spec in interact])
+                        #             # Get the representative cluster for this rotated rotated interaction
+                        #             clRot = cl.g(self.crys, gop)
+                        #
+                        #             # Bring the rotated sites back into the supercell
+                        #             interactRotSupInd = tuple(sorted([(self.sup.index(site.R, site.ci)[0], spec)
+                        #                                               for site, spec in interactRot], key=lambda x: x[0]))
+                        #             Interact2RepClustDict[interactRotSupInd].add(clRot)
+                        #             orbit.add(interactRotSupInd)
+                        #
+                        #         InteractSet.update(orbit)
+                        #         InteractSymListNoTrans.append(list(orbit))
 
         maxinteractions = max([len(lst) for key, lst in SiteSpecinteractList.items()])
 
         SiteSpecinteractList.default_factory = None
         Interact2RepClustDict.default_factory = None
 
-        if NoTrans:
-            InteractSymListNoTrans.sort(key=lambda x: len(x))
-            return SiteSpecinteractList, maxinteractions, InteractSymListNoTrans, Interact2RepClustDict
-
-        else:
-            return SiteSpecinteractList, maxinteractions
+        # if NoTrans:
+        #     InteractSymListNoTrans.sort(key=lambda x: len(x))
+        #     return SiteSpecinteractList, maxinteractions, InteractSymListNoTrans, Interact2RepClustDict
+        #
+        # else:
+        return SiteSpecinteractList, maxinteractions
 
     def IndexClusters(self):
         """
